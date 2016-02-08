@@ -1,4 +1,8 @@
-module Cli where
+module Cli
+  ( commandline
+  , parseOptions
+  , showHelp
+  ) where
 
 import           Control.Monad
 import           Options.Applicative
@@ -6,6 +10,8 @@ import           System.Directory
 import           System.Environment
 import           System.Exit
 import           System.Process
+
+import           Types
 
 showHelpText :: ParserInfo a -> IO ()
 showHelpText info = do
@@ -16,16 +22,6 @@ showHelpText info = do
     _           -> die "Could not load helptext. This never should happen!"
   where
     failure = parserFailure defaultPrefs info ShowHelpText mempty
-
-data Options = Options
-  { doDebug       :: Bool
-  , version       :: Bool
-  , connection    :: Maybe String
-  , token         :: Maybe String
-  , configuration :: Maybe FilePath
-  , action        :: String
-} deriving (Show)
-
 
 parseOptions :: IO Options
 parseOptions = execParser optionParser

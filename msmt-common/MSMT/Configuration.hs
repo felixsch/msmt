@@ -4,8 +4,9 @@ module MSMT.Configuration
   ( loadConfiguration
   , Configuration
   , Value(..)
-  , HasConfiguration(..)
-  , getFromConf
+  , cfgEither, cfg, cfg', cfgDefault
+  , validateConfiguration
+  , has
   ) where
 
 import           Control.Monad
@@ -20,14 +21,20 @@ import qualified Data.Text                 as T
 import qualified Data.Text.Encoding        as T
 import qualified Data.Text.Read            as T
 import qualified Data.Vector               as V
+import           System.Exit
+import           System.IO.Error
 
 import           MSMT.Util.ErrorT
 
 type Configuration = Ini
 
 loadConfiguration :: (MonadIO m) => FilePath -> ErrorT String m Configuration
-loadConfiguration path = eitherToError =<< liftIO (readIniFile path)
-
+loadConfiguration path = eitherToError =<< liftIO (do
+  result <- tryIOError $ readIniFile path
+  return $ case result of
+    Left err           -> Left (show err)
+    Right (Left err)   -> Left err
+    Right (Right conf) -> Right conf)
 
 class Value a where
   toValue :: Text -> Either String a
@@ -51,16 +58,36 @@ instance (Value a) => Value (V.Vector a) where
     Left err   -> Left $ "invalid list (" ++ err ++ "s)."
     Right list -> Right $ V.fromList list
 
-getFromConf :: Value a => Text -> Text -> Configuration -> Either String a
-getFromConf section key conf = case lookupValue section key conf of
+
+cfgEither :: Value a => String -> String -> Configuration -> Either String a
+cfgEither section key conf = case lookupValue (T.pack section) (T.pack key) conf of
   Left err     -> Left err
   Right result -> toValue result
 
-class (Functor m) => HasConfiguration m where
-  getEither :: Value a => Text -> Text -> m (Either String a)
 
-  get :: Value a => Text -> Text -> m (Maybe a)
-  get section key = either (const Nothing) Just <$> getEither section key
+cfg :: Value a => String -> String -> Configuration -> Maybe a
+cfg section key config = either (const Nothing) Just $ cfgEither section key config
 
-  getDefault :: Value a => Text -> Text -> a -> m a
-  getDefault section key def = fromMaybe def <$> get section key
+cfg' :: Value a => String -> String -> Configuration -> a
+cfg' section key config = either failure id $ cfgEither section key config
+  where
+    failure _ = error $ "Could not find key " ++ section ++ "/" ++ key
+
+cfgDefault :: Value a => String -> String -> a -> Configuration -> a
+cfgDefault section key def config = fromMaybe def $ cfg section key config
+
+
+
+validateConfiguration :: Configuration -> [(String, String)] -> IO ()
+validateConfiguration conf required = forM_ required $ \(section, key) ->
+  when (missingValue $ lookupValue (T.pack section) (T.pack key) conf) $
+    die $ "Missconfigured configuration detected. `"
+      ++ key ++ "` in section `"
+      ++ section ++ "` is missing" ++ "\n"
+      ++ "Check the your msmt configuration"
+  where
+    missingValue (Left _)  = True
+    missingValue (Right _) = False
+
+has :: String -> String -> (String, String)
+has = (,)
