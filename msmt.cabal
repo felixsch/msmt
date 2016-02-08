@@ -1,0 +1,67 @@
+name:                msmt
+version:             0.1.0.0
+synopsis:            A haskell smt replacement
+description:         Please see README.md
+homepage:            http://github.com/felixsch/msmt
+license:             BSD3
+license-file:        LICENSE
+author:              Felix Schnizlein
+maintainer:          felix@schnizle.in
+copyright:           2016 Felix Schnizlein
+category:            Web
+build-type:          Simple
+-- extra-source-files:
+cabal-version:       >=1.10
+
+library
+  hs-source-dirs:      msmt-common
+  exposed-modules:     HSMT.Configuration
+
+  default-language:    Haskell2010
+  build-depends:       base >= 4.7 && < 5
+                     , conduit
+                     , stm-conduit
+                     , libxml-sax
+                     , stm
+                     , containers
+                     , bytestring
+                     , http-conduit
+                     , hashtables
+                     , persistent-postgresql
+                     , servant
+                     , wai
+                     , warp
+                     , persistent
+                     , mtl
+                     , transformers
+                     , text
+                     , ini
+
+executable msmt-proxy
+  hs-source-dirs:    msmt-proxy
+  main-is:           Main.hs
+  ghc-options:       -threaded -rtsopts -with-rtsopts=-N
+  default-language:    Haskell2010
+  build-depends:       base >= 4.7 && < 5
+                     , conduit
+                     , stm-conduit
+                     , libxml-sax
+                     , stm
+                     , containers
+                     , bytestring
+                     , http-conduit
+                     , http-types
+                     , http-date
+                     , blaze-builder
+                     , hashtables
+                     , persistent-postgresql
+                     , servant
+                     , wai
+                     , warp
+                     , persistent
+                     , mtl
+                     , transformers
+                     , text
+                     , ini
+                     , vector
+                     , optparse-applicative
