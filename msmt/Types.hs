@@ -21,7 +21,4 @@ data Options = Options
 } deriving (Show)
 
 
-data Runtime = Runtime
-  { connectionPool :: ConnectionPool
-  , options        :: Options
-  , conf           :: Configuration }
+type Runtime = (ConnectionPool, Configuration, Options)

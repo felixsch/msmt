@@ -16,6 +16,7 @@ import           MSMT.Util.ErrorT
 import           Backend
 import           Cli
 import           Database
+import           Import.SCC
 import           Types
 
 
@@ -45,6 +46,7 @@ main = commandline $ do
 
   case action options of
     "start"   -> runBackend pool options config
+    "sync"    -> syncSCC (pool, config, options)
     "status"  -> putStrLn "Currently not implemented"
     "stop"    -> putStrLn "Currently not implemented"
     otherwise -> showHelp

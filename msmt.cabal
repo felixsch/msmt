@@ -32,12 +32,16 @@ library
                      , transformers
                      , text
                      , bytestring
+                     , base64-bytestring
                      , mtl
                      , vector
                      , either
                      , process
                      , directory
                      , monad-control
+                     , case-insensitive
+                     , regex-posix
+
 
                      -- concurrent
                      , stm-conduit
@@ -45,8 +49,10 @@ library
 
                      -- web
                      , servant
+                     , servant-client
                      , wai
                      , warp
+                     , http-client
 
                      -- database
 
@@ -61,12 +67,14 @@ library
                      -- fileformat
                      , libxml-sax
                      , ini
+                     , aeson
 executable msmt
   hs-source-dirs:      msmt
   other-modules:       Backend
                      , Types
                      , Database
                      , Cli
+                     , Import.SCC.Api
   main-is:             Main.hs
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   default-language:    Haskell2010
@@ -82,6 +90,11 @@ executable msmt
                      , http-date
                      , blaze-builder
                      , hashtables
+                     , servant-client
+                     , base64-bytestring
+                     , http-client
+                     , regex-posix
+                     , aeson
 
 
                      , persistent
@@ -101,6 +114,8 @@ executable msmt
                      , directory
                      , monad-logger
                      , monad-control
+                     , either
+                     , case-insensitive
 
 
 executable msmt-proxy
@@ -135,6 +150,9 @@ executable msmt-proxy
                      , msmt
                      , monad-logger
                      , monad-control
+                     , either
+                     , case-insensitive
+                     , regex-posix
 
 
 executable msmt-cli
@@ -167,6 +185,7 @@ executable msmt-cli
                      , optparse-applicative
                      , msmt
                      , monad-logger
+                     , case-insensitive
 
 executable msmt-frontend
   hs-source-dirs:    msmt-frontend

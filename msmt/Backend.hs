@@ -9,6 +9,7 @@ import           MSMT.Configuration
 import           MSMT.Util
 
 import           Database
+import           Import.SCC.Api
 import           Types
 
 runBackend :: ConnectionPool -> Options -> Configuration -> IO ()

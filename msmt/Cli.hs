@@ -5,6 +5,7 @@ module Cli
   ) where
 
 import           Control.Monad
+import           Control.Monad.IO.Class
 import           Options.Applicative
 import           System.Directory
 import           System.Environment
@@ -12,6 +13,16 @@ import           System.Exit
 import           System.Process
 
 import           Types
+
+
+say :: (MonadIO m) => String -> m ()
+say = liftIO . putStrLn
+
+warn :: (MonadIO m) => String -> m ()
+warn msg = liftIO $ putStrLn $ "Warning: " ++ msg
+
+err :: (MonadIO m) => String -> m ()
+err msg = liftIO $ putStrLn $ "Error: " ++ msg
 
 showHelpText :: ParserInfo a -> IO ()
 showHelpText info = do
