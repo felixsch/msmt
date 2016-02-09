@@ -1,6 +1,5 @@
 module Types
-  ( Backend(..)
-  , Options(..)
+  ( Options(..)
   , Runtime(..)
 
   ) where
@@ -10,9 +9,6 @@ import           Control.Monad.Logger
 import           Database.Persist.Postgresql
 
 import           MSMT.Configuration
-
--- general backend monad type
-type Backend = LoggingT IO
 
 -- commandline options
 data Options = Options

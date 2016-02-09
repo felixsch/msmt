@@ -20,34 +20,47 @@ library
                      , MSMT.Util
                      , MSMT.Util.ErrorT
 
+                     , MSMT.Database.Util
+                     , MSMT.Database.Schema
+
   default-language:    Haskell2010
   build-depends:       base >= 4.7 && < 5
-                     , conduit
-                     , stm-conduit
-                     , libxml-sax
-                     , stm
+
+                     -- common
                      , containers
                      , bytestring
-                     , http-conduit
-                     , hashtables
-                     , persistent-postgresql
-                     , servant
-                     , wai
-                     , warp
-                     , persistent
-                     , either
-                     , ini
                      , transformers
                      , text
                      , bytestring
                      , mtl
                      , vector
-                     -- msmt
+                     , either
                      , process
-                     , optparse-applicative
                      , directory
-                     , monad-logger
+                     , monad-control
 
+                     -- concurrent
+                     , stm-conduit
+                     , stm
+
+                     -- web
+                     , servant
+                     , wai
+                     , warp
+
+                     -- database
+
+                     , monad-logger
+                     , persistent
+                     , persistent-template
+                     , persistent-postgresql
+
+                     -- cli
+                     , optparse-applicative
+
+                     -- fileformat
+                     , libxml-sax
+                     , ini
 executable msmt
   hs-source-dirs:      msmt
   other-modules:       Backend
@@ -69,11 +82,14 @@ executable msmt
                      , http-date
                      , blaze-builder
                      , hashtables
+
+
+                     , persistent
                      , persistent-postgresql
+                     , persistent-template
                      , servant
                      , wai
                      , warp
-                     , persistent
                      , mtl
                      , transformers
                      , text
@@ -84,6 +100,7 @@ executable msmt
                      , process
                      , directory
                      , monad-logger
+                     , monad-control
 
 
 executable msmt-proxy
@@ -104,6 +121,7 @@ executable msmt-proxy
                      , blaze-builder
                      , hashtables
                      , persistent-postgresql
+                     , persistent-template
                      , servant
                      , wai
                      , warp
@@ -116,6 +134,7 @@ executable msmt-proxy
                      , optparse-applicative
                      , msmt
                      , monad-logger
+                     , monad-control
 
 
 executable msmt-cli

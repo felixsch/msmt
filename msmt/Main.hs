@@ -40,16 +40,14 @@ main = commandline $ do
   validateConfiguration config requiredFields
 
   -- connect to database
-  -- from now on run in runStdoutLoggingT
-  runStdoutLoggingT $ do
+  pool <- runStdoutLoggingT $ createPostgresqlPool (cfg' "backend" "db-connection" config)
+                                                   (cfgDefault "backend" "db-pool" 3 config)
 
-    pool     <- createPostgresqlPool (cfg' "backend" "db-connection" config)
-                                     (cfgDefault "backend" "db-pool" 3 config)
-
-    case action options of
-      "init"    -> initializeDatabase pool options config
-      "start"   -> runBackend pool options config
-      otherwise -> liftIO showHelp
+  case action options of
+    "start"   -> runBackend pool options config
+    "status"  -> putStrLn "Currently not implemented"
+    "stop"    -> putStrLn "Currently not implemented"
+    otherwise -> showHelp
 
   where
     getConfig = fromMaybe configurationPath . configuration

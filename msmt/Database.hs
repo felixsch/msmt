@@ -6,10 +6,13 @@ module Database
 import           Database.Persist.Postgresql
 
 import           MSMT.Configuration
+import           MSMT.Database.Schema
+import           MSMT.Database.Util
 import           MSMT.Util
 
 import           Types
 
 
-initializeDatabase :: ConnectionPool -> Options -> Configuration -> Backend ()
-initializeDatabase pool options conf = liftIO $ putStrLn "initializedDatabase"
+
+initializeDatabase :: ConnectionPool -> IO ()
+initializeDatabase pool = withPool pool $ runMigration migrateAll
