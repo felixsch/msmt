@@ -1,7 +1,7 @@
 module Cli
   ( commandline
-  , parseOptions
-  , showHelp
+  , msmtOptions
+  , msmtHelp
   ) where
 
 import           Control.Monad
@@ -12,30 +12,12 @@ import           System.Environment
 import           System.Exit
 import           System.Process
 
+import           MSMT.Cli
+
 import           Types
 
-
-say :: (MonadIO m) => String -> m ()
-say = liftIO . putStrLn
-
-warn :: (MonadIO m) => String -> m ()
-warn msg = liftIO $ putStrLn $ "Warning: " ++ msg
-
-err :: (MonadIO m) => String -> m ()
-err msg = liftIO $ putStrLn $ "Error: " ++ msg
-
-showHelpText :: ParserInfo a -> IO ()
-showHelpText info = do
-  prog <- getProgName
-  let (msg, exit) = renderFailure failure prog
-  case exit of
-    ExitSuccess -> putStrLn msg
-    _           -> die "Could not load helptext. This never should happen!"
-  where
-    failure = parserFailure defaultPrefs info ShowHelpText mempty
-
-parseOptions :: IO Options
-parseOptions = execParser optionParser
+msmtOptions :: IO Options
+msmtOptions = execParser optionParser
 
 optionParser :: ParserInfo Options
 optionParser = info (helper <*> options) ( fullDesc
@@ -59,11 +41,10 @@ optionParser = info (helper <*> options) ( fullDesc
     actionHelp        = "Action to perfom"
 
 
-
 commandline :: IO () -> IO ()
 commandline programm = do
   args <- getArgs
-  when (null args) showHelp
+  when (null args) msmtHelp
 
   let (command:args') = args
   if command `elem` subcommands
@@ -80,13 +61,8 @@ runSubCommand command args = do
     Nothing   -> die "Could not find msmt subcommand. Is msmt installed correctly and in your $PATH?"
 
 
-showHelp :: IO ()
-showHelp = do
-  showHelpText optionParser
-  putStr $ unlines help
-  exitSuccess
-  where
-    help =
+msmtHelp :: IO ()
+msmtHelp = showHelp optionParser $
       [ ""
       , "Commands available from the msmt commandline interface"
       , ""

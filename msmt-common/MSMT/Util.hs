@@ -7,20 +7,35 @@ module MSMT.Util
   , forM_
   , fromMaybe
   , maybe
-  , split
+  , say, warn, errors, info
   , either ) where
 
 
 import           Control.Monad
 import           Control.Monad.IO.Class
 import           Control.Monad.Trans.Class
+import           System.IO
 
 import           Data.Either
 import           Data.Maybe
 
 
-split :: (Char -> Bool) -> String -> [String]
-split p s =  case dropWhile p s of
-                      "" -> []
-                      s' -> w : split p s''
-                            where (w, s'') = break p s'
+say :: (MonadIO m) => String -> m ()
+say msg = liftIO $ do
+  hPutStrLn stdout msg
+  hFlush stdin
+
+info :: (MonadIO m) => String -> m ()
+info msg = liftIO $ do
+  hPutStrLn stdout $ "(II): " ++ msg
+  hFlush stdout
+
+warn :: (MonadIO m) => String -> m ()
+warn msg = liftIO $ do
+  hPutStrLn stderr $ "(WW): " ++ msg
+  hFlush stderr
+
+errors :: (MonadIO m) => String -> m ()
+errors msg = liftIO $ do
+  hPutStrLn stderr $ "(EE): " ++ msg
+  hFlush stderr

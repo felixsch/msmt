@@ -41,19 +41,18 @@ instance HasClient api => HasClient (BasicAuth :> api) where
    clientWithRoute Proxy req baseurl login =
      clientWithRoute (Proxy :: Proxy api) (loginRequest login req) baseurl
 
+loginRequest :: BasicAuthLogin -> Req -> Req
+loginRequest (BasicAuthLogin user password) req = addHeader "Authorization" auth req
+  where
+    auth = T.decodeUtf8 ("Basic " <> B64.encode (user <> ":" <> password))
+
 -- Paginated Response ----------------------------------------------------------
 
 
 data Paginated a = Paginated
-  { total  :: Int
-  , prev   :: Maybe Int
+  { prev   :: Maybe Int
   , next   :: Maybe Int
   , result :: a }
-
-instance (Show a) => Show (Paginated a) where
-  show (Paginated _ p n r) = "Paginated [ prev: " ++ show p
-                                            ++ ", next: " ++ show n ++ ", content: a lot of text"
-
 
 instance {-# OVERLAPPING #-} (MimeUnrender ct a) => HasClient (Get (ct ': cts) (Paginated a)) where
   type Client (Get (ct ': cts) (Paginated a)) = EitherT ServantError IO (Paginated a)
@@ -62,11 +61,9 @@ instance {-# OVERLAPPING #-} (MimeUnrender ct a) => HasClient (Get (ct ': cts) (
     (headers, content) <- performRequestCT (Proxy :: Proxy ct) H.methodGet req [200, 203, 204, 302] baseurl
     return $ parseHeader (headers,content)
 
-
 parseHeader :: ([(H.HeaderName, ByteString)], a) -> Paginated a
 parseHeader (headers, resp) = Paginated
-  { total = 0
-  , prev  = prev'
+  { prev  = prev'
   , next  = next'
   , result = resp }
   where
@@ -76,7 +73,6 @@ parseHeader (headers, resp) = Paginated
     (next', prev') = case findHeader "Link" of
       Nothing -> (Nothing, Nothing)
       Just b  -> parseLinkHeader b
-
 
 parseLinkHeader :: ByteString -> (Maybe Int, Maybe Int)
 parseLinkHeader header = (lookup "next" relMap, lookup "prev" relMap)
@@ -95,23 +91,23 @@ parseLinkHeader header = (lookup "next" relMap, lookup "prev" relMap)
     matchRels links = map (\(l :: ByteString) ->
       getAllTextSubmatches $ l =~ ("page=([0-9]+)>; rel=\"(prev|next)\"" :: ByteString) :: [ByteString]) links
 
-
-
-
-loginRequest :: BasicAuthLogin -> Req -> Req
-loginRequest (BasicAuthLogin user password) req = addHeader "Authorization" auth req
-  where
-    auth = T.decodeUtf8 ("Basic " <> B64.encode (user <> ":" <> password))
-
+-- Import API ------------------------------------------------------------------
 
 type OrganizationsAPI = BasicAuth :> "connect" :> "organizations" :> "products" :> QueryParam "page" Int :> Get '[JSON] (Paginated Array)
-                   :<|> BasicAuth :> "connect" :> "organizations" :> "repositories" :> QueryParam "page" Int :> Get '[JSON] Text
-                   :<|> BasicAuth :> "connect" :> "organizations" :> "systems" :> QueryParam "page" Int :> Get '[JSON] Text
+                   :<|> BasicAuth :> "connect" :> "organizations" :> "repositories" :> QueryParam "page" Int :> Get '[JSON] (Paginated Array)
+                   :<|> BasicAuth :> "connect" :> "organizations" :> "systems" :> QueryParam "page" Int :> Get '[JSON] (Paginated Array)
 
-suseBaseUrl = BaseUrl Http "localhost" 3000
 
 organizationsAPI :: Proxy OrganizationsAPI
 organizationsAPI = Proxy
 
+testBaseUrl = BaseUrl Http "localhost" 3000
 
-(getProducts :<|> getRepositories :<|> getSystems) = client organizationsAPI suseBaseUrl
+(testGetProducts :<|> testGetRepositories :<|> testGetSystems) = client organizationsAPI testBaseUrl
+
+runTest :: EitherT ServantError IO a -> IO a
+runTest f = do
+  result <- runEitherT f
+  case result of
+    Left err -> error $ "Error: " ++ show err
+    Right r  -> return r

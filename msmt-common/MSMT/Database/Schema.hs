@@ -22,52 +22,45 @@ import           Database.Persist.TH
 
 
 -- Product
-share [mkPersist sqlSettings, mkMigrate "migrateAll", mkDeleteCascade sqlSettings] [persistLowerCase|
-Product json
-  Id Int
+share [mkPersist sqlSettings, mkMigrate "migrateAll"] [persistLowerCase|
+Product
   name Text
   identifier Text
-  formerIdentifier Text
+  former Text
   version Text
   releaseType Text Maybe
-  arch Text
+  arch Text Maybe
   friendlyName Text
   productClass Text
-  productFamily Text
-  cpe Text
+  productFamily Text Maybe
+  cpe Text Maybe
   free Bool
-  description Text
+  description Text Maybe
   eulaUrl Text
   productType Text
-  shortname Text
+  shortname Text Maybe
+  predecessorIds [Int]
+  successorIds [Int] Maybe
+  extensions [Int]
+  repositories [Int]
+  deriving Show
 
-ProductPredecessor
-  productId Int eq
-  predecessorId Int eq
-  Primary productId
-
-ProductSuccessor
-  productId ProductId eq
-  successorId ProductId eq
-
-Repository json
-  Id Int
+Repository
   name Text
-  distroTarget Text
+  distroTarget Text Maybe
   description Text
   url Text
+  enabled Bool
   autorefresh Bool
   deriving Show Eq
 
-ProductRepository
-  productId ProductId eq
-  repositoryId RepositoryId eq
-  deriving (Show)
-
-Systems
-  Id Int
+System
   login Text
   password Text
   fromScc Bool
   deriving Show Eq
 |]
+
+
+toPersonId :: Int -> Key Product
+toPersonId i = toSqlKey (fromIntegral i)

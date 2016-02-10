@@ -31,7 +31,7 @@ requiredFields =
 main :: IO ()
 main = commandline $ do
   -- parse options  && version
-  options <- parseOptions
+  options <- msmtOptions
   when (version options) $ putStrLn msmtVersion >> exitSuccess
 
   -- load configuration
@@ -41,15 +41,15 @@ main = commandline $ do
   validateConfiguration config requiredFields
 
   -- connect to database
-  pool <- runStdoutLoggingT $ createPostgresqlPool (cfg' "backend" "db-connection" config)
+  pool <- runNoLoggingT $ createPostgresqlPool (cfg' "backend" "db-connection" config)
                                                    (cfgDefault "backend" "db-pool" 3 config)
 
   case action options of
     "start"   -> runBackend pool options config
-    "sync"    -> syncSCC (pool, config, options)
+    "sync"    -> whenFail (syncSCC (pool, config, options)) $ \err -> print err
     "status"  -> putStrLn "Currently not implemented"
     "stop"    -> putStrLn "Currently not implemented"
-    otherwise -> showHelp
+    otherwise -> msmtHelp
 
   where
     getConfig = fromMaybe configurationPath . configuration

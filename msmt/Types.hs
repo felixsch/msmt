@@ -4,8 +4,6 @@ module Types
 
   ) where
 
-
-import           Control.Monad.Logger
 import           Database.Persist.Postgresql
 
 import           MSMT.Configuration
