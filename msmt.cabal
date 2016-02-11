@@ -21,6 +21,8 @@ library
                      , MSMT.Util.ErrorT
                      , MSMT.Util.Workers
                      , MSMT.Cli
+                     , MSMT.Messages
+                     , MSMT.Api.Auth
 
                      , MSMT.Database.Util
                      , MSMT.Database.Schema
@@ -53,16 +55,19 @@ library
                      -- web
                      , servant
                      , servant-client
+                     , servant-server
                      , wai
                      , warp
                      , http-client
+                     , time
 
                      -- database
 
                      , monad-logger
                      , persistent
                      , persistent-template
-                     , persistent-postgresql
+                     , persistent-postgresql 
+                     , esqueleto
 
                      -- cli
                      , optparse-applicative
@@ -71,6 +76,7 @@ library
                      , libxml-sax
                      , ini
                      , aeson
+
 executable msmt
   hs-source-dirs:      msmt
   other-modules:       Backend
@@ -102,7 +108,8 @@ executable msmt
                      , aeson
                      , async
                      , servant-server
-
+                     , time
+                     , esqueleto
 
                      , persistent
                      , persistent-postgresql
@@ -124,6 +131,51 @@ executable msmt
                      , either
                      , case-insensitive
                      , servant-server
+
+executable msmt-frontend
+  hs-source-dirs:    msmt-frontend
+  other-modules:     Cli
+                     Types
+                     Server
+                     Api
+                     Api.Subscriptions
+                     Util
+  main-is:           Main.hs
+  ghc-options:       -threaded -rtsopts -with-rtsopts=-N
+  default-language:    Haskell2010
+  build-depends:       base >= 4.7 && < 5
+                     , conduit
+                     , stm-conduit
+                     , libxml-sax
+                     , stm
+                     , containers
+                     , bytestring
+                     , http-conduit
+                     , http-types
+                     , http-date
+                     , blaze-builder
+                     , hashtables
+                     , persistent-postgresql
+                     , servant
+                     , wai
+                     , wai-extra
+                     , warp
+                     , persistent
+                     , mtl
+                     , transformers
+                     , text
+                     , vector
+                     , optparse-applicative
+                     , msmt
+                     , monad-logger
+                     , directory
+                     , servant-server
+                     , either
+                     , time
+                     , aeson
+                     , regex-posix
+                     , random
+                     , esqueleto
 
 
 executable msmt-proxy
@@ -195,39 +247,3 @@ executable msmt-cli
                      , msmt
                      , monad-logger
                      , case-insensitive
-
-executable msmt-frontend
-  hs-source-dirs:    msmt-frontend
-  other-modules:     Cli
-                     Types
-                     Api
-  main-is:           Main.hs
-  ghc-options:       -threaded -rtsopts -with-rtsopts=-N
-  default-language:    Haskell2010
-  build-depends:       base >= 4.7 && < 5
-                     , conduit
-                     , stm-conduit
-                     , libxml-sax
-                     , stm
-                     , containers
-                     , bytestring
-                     , http-conduit
-                     , http-types
-                     , http-date
-                     , blaze-builder
-                     , hashtables
-                     , persistent-postgresql
-                     , servant
-                     , wai
-                     , warp
-                     , persistent
-                     , mtl
-                     , transformers
-                     , text
-                     , vector
-                     , optparse-applicative
-                     , msmt
-                     , monad-logger
-                     , directory
-                     , servant-server
-                     , either

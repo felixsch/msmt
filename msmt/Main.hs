@@ -41,7 +41,7 @@ main = commandline $ do
   validateConfiguration config requiredFields
 
   -- connect to database
-  pool <- runNoLoggingT $ createPostgresqlPool (cfg' "backend" "db-connection" config)
+  pool <- runStdoutLoggingT $ createPostgresqlPool (cfg' "backend" "db-connection" config)
                                                    (cfgDefault "backend" "db-pool" 3 config)
 
   case action options of

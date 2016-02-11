@@ -1,16 +1,17 @@
 module MSMT.Util
   -- re-export stuff which is required often
-  ( liftIO
+  ( MonadIO(..)
   , lift
   , when
   , forM
   , forM_
   , fromMaybe
   , maybe
+  , fork_
   , say, warn, errors, info
   , either ) where
 
-
+import           Control.Concurrent        (forkIO)
 import           Control.Monad
 import           Control.Monad.IO.Class
 import           Control.Monad.Trans.Class
@@ -39,3 +40,6 @@ errors :: (MonadIO m) => String -> m ()
 errors msg = liftIO $ do
   hPutStrLn stderr $ "(EE): " ++ msg
   hFlush stderr
+
+fork_ :: (MonadIO m) => IO () -> m ()
+fork_ = liftIO . void . forkIO

@@ -96,6 +96,7 @@ parseLinkHeader header = (lookup "next" relMap, lookup "prev" relMap)
 type OrganizationsAPI = BasicAuth :> "connect" :> "organizations" :> "products" :> QueryParam "page" Int :> Get '[JSON] (Paginated Array)
                    :<|> BasicAuth :> "connect" :> "organizations" :> "repositories" :> QueryParam "page" Int :> Get '[JSON] (Paginated Array)
                    :<|> BasicAuth :> "connect" :> "organizations" :> "systems" :> QueryParam "page" Int :> Get '[JSON] (Paginated Array)
+                   :<|> BasicAuth :> "connect" :> "organizations" :> "subscriptions" :> QueryParam "page" Int :> Get '[JSON] (Paginated Array)
 
 
 organizationsAPI :: Proxy OrganizationsAPI
@@ -103,7 +104,7 @@ organizationsAPI = Proxy
 
 testBaseUrl = BaseUrl Http "localhost" 3000
 
-(testGetProducts :<|> testGetRepositories :<|> testGetSystems) = client organizationsAPI testBaseUrl
+(testGetProducts :<|> testGetRepositories :<|> testGetSystems :<|> testGetSubscriptions) = client organizationsAPI testBaseUrl
 
 runTest :: EitherT ServantError IO a -> IO a
 runTest f = do
