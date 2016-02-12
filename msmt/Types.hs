@@ -2,7 +2,7 @@ module Types
   ( Options(..)
   , Runtime(..)
   , Paginated(..)
-  , ImportError(..)
+  , SyncError(..)
   , ApiEndpoint
   ) where
 
@@ -32,10 +32,10 @@ data Runtime = Runtime
   , rtOpts :: Options
   , rtChan :: MessageChan }
 
-data ImportError = InvalidSource String
-                 | RequestFailed String
+data SyncError = InvalidSource String
+               | RequestFailed String
 
-instance Show ImportError where
+instance Show SyncError where
   show (InvalidSource err) = "Invalid source url specified: " ++ err
   show (RequestFailed err) = "Sending request failed: " ++ err
 

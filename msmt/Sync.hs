@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeOperators     #-}
 
@@ -22,6 +23,7 @@ import           MSMT.Database.Schema
 import           MSMT.Messages
 import           MSMT.Monad
 import           MSMT.Util
+import           MSMT.Util.ErrorT
 import           MSMT.Util.Workers
 
 import           Monad
@@ -35,9 +37,9 @@ runSync :: ConnectionPool -> Configuration -> Options -> IO ()
 runSync pool conf options = do
 
   validateConfiguration conf
-    [ ("import" , "source")
-    , ("import" , "organization")
-    , ("import" , "credentials") ]
+    [ ("sync" , "source")
+    , ("sync" , "organization")
+    , ("sync" , "credentials") ]
 
   chan <- newMessageChannel
 
@@ -59,52 +61,67 @@ syncAllEntities = do
   db $ runMigration migrateAll
 
   -- set source url
-  let baseurl = genBaseUrl (cfg' "frontend" "source" conf)
+  let baseurl = genBaseUrl (cfg' "sync" "source" conf)
   when (isNothing baseurl) $ liftIO $ die "Invalid Source url specified in configuration."
 
   -- setup endpoints
   let (pr :<|> repo :<|> sys :<|> sub) = client syncAPI (fromJust baseurl :: BaseUrl)
-  let syncFunctions = [ ("products", syncProducts (pr login))
-                      , ("subscriptions", syncSubscriptions (sub login))
-                      , ("repositories", syncRepositories (repo login))
-                      , ("systems", syncSystems (sys login)) ]
+  let w = workers conf
+      l = login conf
+  let syncFunctions = [ ("products", syncProducts w (pr l))
+                      , ("subscriptions", syncSubscriptions w (sub l))
+                      , ("repositories", syncRepositories w (repo l))
+                      , ("systems", syncSystems w (sys l)) ]
 
   -- start syncing
-  info $ "Start syncing from" ++ sourceApi conf
+  info $ "Start syncing from " ++ cfg' "sync" "source" conf
   forM_ (toSync options) $ \sync ->
     case lookup sync syncFunctions of
       Nothing -> warn $ "Invalid entity to sync: " ++ sync
       Just f  -> f
 
   where
-    sourceApi = cfg' "import" "source"
-
+    workers  = cfgDefault "sync" "import-workers" 10
     toSync o = case syncOnly o of
       Just x  -> [x]
       Nothing -> [ "products", "subscriptions"
                  , "repositories", "systems" ]
 
-    login c = BasicAuthLogin (cfg' "frontend" "organization" c) (cfg' "frontend" "credentials" c)
+    login c = BasicAuthLogin (cfg' "sync" "organization" c) (cfg' "sync" "credentials" c)
 
 
-syncProducts :: ApiEndpoint -> SyncM ()
-syncProducts productEndpoint = do
+syncProducts :: Int -> ApiEndpoint -> SyncM ()
+syncProducts w productEndpoint = syncEntity "products" 10 productEndpoint parseProduct asItIs
+
+syncSubscriptions :: Int -> ApiEndpoint -> SyncM ()
+syncSubscriptions w subscriptionEndpoint = syncEntity "subscriptions" 10 subscriptionEndpoint parseSubscription asItIs
+
+syncSystems :: Int -> ApiEndpoint -> SyncM ()
+syncSystems w systemEndpoint = syncEntity "systems" 10 systemEndpoint parseSystem asItIs
+
+syncRepositories :: Int -> ApiEndpoint -> SyncM ()
+syncRepositories w repositoryEndpoint = syncEntity "repositories" 10 repositoryEndpoint parseRepository asItIs
+
+
+syncEntity :: (ToBackendKey SqlBackend a) => String -> Int -> ApiEndpoint -> (Value -> Parser (Key a, a)) -> (a -> IO a) -> SyncM ()
+syncEntity name workers endpoint parser f = do
   chan <- rtChan <$> ask
   pool <- rtPool <$> ask
-  products <- fetchFromEndpoint productEndpoint
-  work 10 products $ \_ pa ->
-    V.forM_ pa $ \p ->
-      case parseMaybe parseProduct p of
-        Nothing       -> addMessage chan $ Warn $ "parsing products failed. (id =" ++ show (getOnlyId p) ++ ")"
-        Just (key, p) -> withPool pool $ repsert key p
+  set  <- try $ fetchFromEndpoint endpoint
 
-syncSubscriptions :: ApiEndpoint -> SyncM ()
-syncSubscriptions endpoint = undefined
+  case set of
+    Left err  -> errors $ show err
+    Right workToDo -> do
+      work workers workToDo $ \i pa ->
+        V.forM_ pa $ \p ->
+          case parseMaybe parser p of
+            Nothing       -> addMessage chan $ Warn $ "[sync][" ++ name ++ "] parsing "++ name ++" failed. (id =" ++ show (getOnlyId p) ++ ")"
+            Just (key, p) -> do
+              addMessage chan $ Debug $ "Syncing a " ++ name ++ "..."
+              value <- f p
+              withPool pool $ repsert key value
+      waitForWorkDone workToDo
+      info $ "[sync][" ++ name ++"] Importing " ++ name ++ " finished!"
 
-
-syncSystems :: ApiEndpoint -> SyncM ()
-syncSystems endpoint = undefined
-
-
-syncRepositories :: ApiEndpoint -> SyncM ()
-syncRepositories endpoint = undefined
+asItIs :: (Monad m) => a -> m a
+asItIs = return

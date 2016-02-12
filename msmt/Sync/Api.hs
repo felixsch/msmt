@@ -83,5 +83,5 @@ type SyncAPI = BasicAuth :> "connect" :> "organizations" :> "products" :> QueryP
           :<|> BasicAuth :> "connect" :> "organizations" :> "subscriptions" :> QueryParam "page" Int :> Get '[JSON] (Paginated Array)
 
 
-syncAPI :: Proxy syncAPI
+syncAPI :: Proxy SyncAPI
 syncAPI = Proxy

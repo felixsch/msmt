@@ -1,5 +1,6 @@
 module Main where
 
+import           Control.Concurrent
 import           Control.Concurrent.STM.TQueue
 import           Control.Monad
 import           Control.Monad.IO.Class
@@ -41,8 +42,8 @@ main = commandline $ do
   validateConfiguration config requiredFields
 
   -- connect to database
-  pool <- runStdoutLoggingT $ createPostgresqlPool (cfg' "backend" "db-connection" config)
-                                                   (cfgDefault "backend" "db-pool" 3 config)
+  pool <- runNoLoggingT $ createPostgresqlPool (cfg' "backend" "db-connection" config)
+                                               (cfgDefault "backend" "db-pool" 3 config)
 
   case action options of
     "start"   -> putStrLn "Currently not implemented"
@@ -50,6 +51,8 @@ main = commandline $ do
     "status"  -> putStrLn "Currently not implemented"
     "stop"    -> putStrLn "Currently not implemented"
     otherwise -> msmtHelp
+
+  threadDelay 2000000
 
   where
     getConfig = fromMaybe configurationPath . configuration
