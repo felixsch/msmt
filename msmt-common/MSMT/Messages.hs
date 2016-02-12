@@ -4,6 +4,7 @@ import           Control.Concurrent
 import           Control.Concurrent.STM
 import           Control.Concurrent.STM.TChan
 import           Control.Monad
+import           Control.Monad.IO.Class
 import           System.IO
 
 import           MSMT.Util
@@ -22,6 +23,8 @@ instance Show Message where
   show (Error str)   = "(EE): " ++ str
   show (Debug str)   = "(DD): " ++ str
 
+type MessageChan = TChan Message
+
 isBadMessage :: Message -> Bool
 isBadMessage (Warn _)  = True
 isBadMessage (Error _) = True
@@ -31,13 +34,11 @@ isDebug :: Message -> Bool
 isDebug (Debug _) = True
 isDebug _         = False
 
-
-
-type MessageChan = TChan Message
-
-
 newMessageChannel :: MonadIO m => m MessageChan
 newMessageChannel = liftIO $ newTChanIO
+
+addMessage :: MonadIO m => MessageChan -> Message -> m ()
+addMessage chan msg = liftIO $ atomically $ writeTChan chan msg
 
 stdSubscriber :: MonadIO m => Bool -> MessageChan -> m ()
 stdSubscriber verbose chan = do

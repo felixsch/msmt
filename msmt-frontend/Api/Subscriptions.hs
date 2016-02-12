@@ -14,6 +14,7 @@ import           Control.Monad.Trans.Either
 import           Data.Aeson.Types
 import           Data.ByteString            (ByteString)
 import qualified Data.ByteString.Char8      as S8
+import           Data.Either
 import           Data.Maybe
 import           Data.Proxy
 import           Data.Text                  (Text)
@@ -24,12 +25,10 @@ import           Database.Esqueleto         ((^.))
 import qualified Database.Esqueleto         as E
 import           Database.Persist.Sql
 import           GHC.Generics
+import           Network.URI
 import           Servant.API
 import           Servant.Server
 import           System.Random
-
-import           Network.Wai
-import           Network.Wai.Handler.Warp
 
 
 import           MSMT.Api.Auth
@@ -50,19 +49,10 @@ type SubscriptionsAPI = ReqTokenAuth :> "subscriptions" :> "systems" :> ReqBody 
                    :<|> ReqTokenAuth :> "subscriptions" :> "products.json" :> QueryParam "identifier" Text :> QueryParam "version" Text :> QueryParam "arch" Text :> Get '[JSON] Array
 
 
-getSubscription :: Maybe TokenAuth -> FrontendM (TokenAuth, Entity Subscription)
-getSubscription Nothing = debug "Invalid token." >> lift (left err404)
-getSubscription (Just auth) = do
-  msubscription <- db $ selectFirst [SubscriptionRegcode ==. auth] []
-  case msubscription of
-    Nothing -> debug ("subscription " ++ T.unpack auth ++ " not found.") >> lift (left err404)
-    Just subscription -> return (auth, subscription)
-
-
 -- /subscriptions/systems ------------------------------------------------------
 
-parseAnnounce :: Text -> Value -> Maybe Announce
-parseAnnounce regcode = parseMaybe $ withObject "announce" $ \o -> do
+parseAnnounce :: Text -> Value -> Either String Announce
+parseAnnounce regcode = parseEither $ withObject "announce" $ \o -> do
   let announceRegcode = regcode
   announceHostname <- o .:? "hostname"
   announceParent <- o .:? "parent"
@@ -81,21 +71,29 @@ subscriptionAnnounce auth value = do
       login        = T.pack $ "MSMT_" ++ genStr conf gen_login
       mannounce    = parseAnnounce regcode value
 
-  when (isNothing mannounce) $ debug "Can not parse announce." >> lift (left err404)
+  when (isLeft mannounce) $ debug ("Can not parse announce (" ++ fromLeft mannounce ++ ")") >> lift (left err404)
 
-  db $ insert_ $ fromJust mannounce
+  db $ insert_ $ fromRight mannounce
 
   systemId <- db $ insert $ System login password True
-  db $ update subId [SubscriptionSystems =. systemId : subscriptionSystems sub]
+
+  debug $ "Created a new system with id = " ++ show systemId
+
+  -- TODO: Think about how to count the systems. do we really need the syscount?
+  db $ update subId [ SubscriptionSystems =. systemId : subscriptionSystems sub ]
   return $ AnnounceResponse login password
   where
-    genStr conf gen = take (cfgDefault "frontend" "password-length" 16 conf) $ randomRs ('Z', 'z') gen
+    genStr conf gen = take (cfgDefault "frontend" "password-length" 16 conf) $ randomRs ('a', 'z') gen
 
 
+-- FIXME: refactor me
+fromRight (Right a) = a
+fromLeft  (Left a)  = a
 -- subscriptions/products ------------------------------------------------------
 
 subscriptionProducts :: AuthHeader -> Maybe Text -> Maybe Text -> Maybe Text -> FrontendM Array
 subscriptionProducts auth identifier version arch = do
+  conf <- rtConf <$> ask
   (regcode, Entity subId sub) <- getSubscription $ getToken auth
 
   products <- db $ E.select $
@@ -109,7 +107,9 @@ subscriptionProducts auth identifier version arch = do
   V.forM (V.fromList products) $ \p -> do
     repos <- productGetRepos p
     exts  <- productGetExtensions p
-    return $ renderProductWithReposAndExt "http://localhost" p repos exts
+    return $ renderProductWithReposAndExt (proxy conf) p repos exts
+  where
+    proxy conf = cfg' "frontend" "proxy-host" conf :: Text
 
 
 maybe_ a f = when (isJust a) $ f (fromJust a)
@@ -119,18 +119,22 @@ maybe_ a f = when (isJust a) $ f (fromJust a)
 --productToJsonWithRepoAndExts products =
 
 renderProductWithReposAndExt :: Text -> Entity Product -> [Entity Repository] -> [(Entity Product, [Entity Repository])] -> Value
-renderProductWithReposAndExt url (Entity pId p) repos exts = object $
+renderProductWithReposAndExt proxy (Entity pId p) repos exts = object $
   [ "id" .= pId
   , "repositories" .= renderedRepos repos
+  ,
   ]
   where
     renderedRepos repos = V.map renderRepo $ V.fromList repos
     renderRepo (Entity rId r) = object $
-      [ "id" .= rId
-      , "name" .= repositoryName r
+      [ "id"            .= rId
+      , "name"          .= repositoryName r
       , "distro_target" .= repositoryDistroTarget r
-      , "description" .= repositoryDescription r
-      , "url" .= T.concat [url, "/repo/", repositoryName r, "/", repositoryDistroTarget r] ]
+      , "description"   .= repositoryDescription r
+      , "url"           .= replacementForUrl proxy (repositoryUrl r) ]
+
+replacementForUrl :: Text -> Text -> Text
+replacementForUrl host url = T.append host $ T.pack $ maybe "invalid-repo/" uriPath (parseURI $ T.unpack url)
 
 
 productGetExtensions :: Entity Product -> FrontendM [(Entity Product, [Entity Repository])]

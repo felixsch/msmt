@@ -1,9 +1,11 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE OverloadedStrings    #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 
 module MSMT.Configuration
   ( loadConfiguration
   , Configuration
-  , Value(..)
+  , ConfValue(..)
   , cfgEither, cfg, cfg', cfgDefault
   , validateConfiguration
   , has
@@ -36,47 +38,51 @@ loadConfiguration path = eitherToError =<< liftIO (do
     Right (Left err)   -> Left err
     Right (Right conf) -> Right conf)
 
-class Value a where
+class ConfValue a where
   toValue :: Text -> Either String a
 
-instance Value ByteString where
+instance ConfValue ByteString where
   toValue = Right . T.encodeUtf8
 
-instance Value Int where
+instance ConfValue Text where
+  toValue = Right
+
+instance ConfValue Int where
   toValue conv = case T.decimal conv of
     Left _           -> Left "invalid integer value"
     Right (value, _) -> Right value
 
-instance Value Bool where
+instance ConfValue String where
+  toValue = Right . T.unpack
+
+instance ConfValue Bool where
   toValue conv
     | T.toCaseFold conv == "true" = Right True
     | T.toCaseFold conv == "false" = Right False
     | otherwise = Left "invalid boolean value"
 
-instance (Value a) => Value (V.Vector a) where
+instance (ConfValue a) => ConfValue (V.Vector a) where
   toValue conv = case mapM toValue (T.words conv) of
     Left err   -> Left $ "invalid list (" ++ err ++ "s)."
     Right list -> Right $ V.fromList list
 
 
-cfgEither :: Value a => String -> String -> Configuration -> Either String a
+
+cfgEither :: ConfValue a => String -> String -> Configuration -> Either String a
 cfgEither section key conf = case lookupValue (T.pack section) (T.pack key) conf of
   Left err     -> Left err
   Right result -> toValue result
 
-
-cfg :: Value a => String -> String -> Configuration -> Maybe a
+cfg :: ConfValue a => String -> String -> Configuration -> Maybe a
 cfg section key config = either (const Nothing) Just $ cfgEither section key config
 
-cfg' :: Value a => String -> String -> Configuration -> a
+cfg' :: ConfValue a => String -> String -> Configuration -> a
 cfg' section key config = either failure id $ cfgEither section key config
   where
     failure _ = error $ "Could not find key " ++ section ++ "/" ++ key
 
-cfgDefault :: Value a => String -> String -> a -> Configuration -> a
+cfgDefault :: ConfValue a => String -> String -> a -> Configuration -> a
 cfgDefault section key def config = fromMaybe def $ cfg section key config
-
-
 
 validateConfiguration :: Configuration -> [(String, String)] -> IO ()
 validateConfiguration conf required = forM_ required $ \(section, key) ->

@@ -1,4 +1,4 @@
-module MSMT.Cli
+module MSMT.Util.Cli
   ( showHelpText
   , showHelp
   ) where
@@ -22,7 +22,6 @@ showHelpText info = do
     _           -> die "Could not load helptext. This never should happen!"
   where
     failure = parserFailure defaultPrefs info ShowHelpText mempty
-
 
 showHelp :: ParserInfo a -> [String] -> IO ()
 showHelp parser help = do

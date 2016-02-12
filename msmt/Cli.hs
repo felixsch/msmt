@@ -12,7 +12,7 @@ import           System.Environment
 import           System.Exit
 import           System.Process
 
-import           MSMT.Cli
+import           MSMT.Util.Cli
 
 import           Types
 
@@ -32,6 +32,7 @@ optionParser = info (helper <*> options) ( fullDesc
       <*> optional (strOption (long "connect" <> help connectionHelp))
       <*> optional (strOption (long "token" <> help tokenHelp))
       <*> optional (strOption (long "config" <> help configurationHelp))
+      <*> optional (strOption (long "only" <> help onlyHelp))
       <*> strArgument (metavar "action" <> help actionHelp <> value "start")
     debugHelp         = "Enable debugging output"
     versionHelp       = "Show version and quit"
@@ -39,6 +40,7 @@ optionParser = info (helper <*> options) ( fullDesc
     tokenHelp         = "Specify auth token"
     configurationHelp = "Specify configuration file"
     actionHelp        = "Action to perfom"
+    onlyHelp          = "Synchronize only [products|subscriptions|systems|repositories]"
 
 
 commandline :: IO () -> IO ()

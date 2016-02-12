@@ -76,7 +76,7 @@ Subscription
   systems [SystemId]
 
 HardwareInfo json
-  sockets Int
+  sockets Int Maybe
   graphics Text Maybe
   arch Text Maybe
   uUID Text Maybe

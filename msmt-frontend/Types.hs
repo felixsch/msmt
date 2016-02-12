@@ -34,32 +34,3 @@ data Runtime = Runtime
   , rtOptions :: Options
   , rtChan    :: MessageChan
   }
-
-
-
-type FrontendM = ReaderT Runtime (EitherT ServantErr IO)
-
-say :: String -> FrontendM ()
-say = sendMessage . Say
-
-warn :: String -> FrontendM ()
-warn = sendMessage . Warn
-
-errors :: String -> FrontendM ()
-errors = sendMessage . Error
-
-info :: String -> FrontendM ()
-info = sendMessage . Info
-
-debug :: String -> FrontendM ()
-debug = sendMessage . Debug
-
-sendMessage :: Message -> FrontendM ()
-sendMessage msg = do
-  chan <- rtChan <$> ask
-  liftIO $ atomically $ writeTChan chan msg
-
-db :: SqlPersistT IO a -> FrontendM a
-db f = do
-  pool <- rtPool <$> ask
-  liftIO $ runSqlPool f pool

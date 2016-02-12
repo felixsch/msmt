@@ -23,6 +23,13 @@ newWorkingSet i = do
   total   <- liftIO $ newTVarIO 0
   return $ WorkingSet queue workers total
 
+newWorkingSetFixed :: (MonadIO m) => [a] -> m (WorkingSet a)
+newWorkingSetFixed fill = do
+  set <- newWorkingSet (length fill + 2)
+  mapM_ (addWork set) fill
+  finish set
+  return set
+
 addWork :: (MonadIO m) => WorkingSet a -> a -> m ()
 addWork (WorkingSet queue _ _) v = liftIO $ atomically $ writeTBQueue queue (Running v)
 

@@ -2,7 +2,7 @@
 {-# LANGUAGE RecordWildCards   #-}
 {-# LANGUAGE FlexibleContexts  #-}
 
-module Import.SCC.Json where
+module Sync.Json where
 
 
 import           Control.Monad

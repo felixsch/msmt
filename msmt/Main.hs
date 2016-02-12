@@ -13,10 +13,10 @@ import           MSMT.Constants
 import           MSMT.Util.ErrorT
 
 
-import           Backend
+import           Monad
+
 import           Cli
-import           Database
-import           Import.SCC
+import           Sync
 import           Types
 
 
@@ -45,8 +45,8 @@ main = commandline $ do
                                                    (cfgDefault "backend" "db-pool" 3 config)
 
   case action options of
-    "start"   -> runBackend pool options config
-    "sync"    -> whenFail (syncSCC (pool, config, options)) $ \err -> print err
+    "start"   -> putStrLn "Currently not implemented"
+    "sync"    -> runSync pool config options
     "status"  -> putStrLn "Currently not implemented"
     "stop"    -> putStrLn "Currently not implemented"
     otherwise -> msmtHelp

@@ -22,25 +22,15 @@ import           Servant.Common.Req
 
 import           MSMT.Configuration         hiding (Value)
 import           MSMT.Database.Schema
-import           MSMT.Database.Util
 import           MSMT.Util
 import           MSMT.Util.ErrorT
 import           MSMT.Util.Workers
+import MSMT.Api.Auth
 
 import           Import.SCC.Api
 import           Import.SCC.Json
 import           Types
 
-
-data ImportError = InvalidSource String
-                 | RequestFailed String
-
-instance Show ImportError where
-  show (InvalidSource err) = "Invalid source url specified: " ++ err
-  show (RequestFailed err) = "Sending request failed: " ++ err
-
-
-type ApiEndpoint = Maybe Int -> EitherT ServantError IO (Paginated Array)
 
 syncSCC :: Runtime -> ErrorT ImportError IO ()
 syncSCC (pool, conf, opts) = do

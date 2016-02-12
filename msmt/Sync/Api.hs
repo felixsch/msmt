@@ -8,7 +8,7 @@
 {-# LANGUAGE TypeOperators       #-}
 
 
-module Import.SCC.Api where
+module Sync.Api where
 
 import Control.Monad.Trans.Either
 import           Data.ByteString        (ByteString)
@@ -29,30 +29,13 @@ import           Servant.Common.Req
 import Text.Regex.Posix
 import Data.Maybe
 
--- Basic authentification for servant clients ----------------------------------
-data BasicAuth
-  deriving (Typeable)
+import MSMT.Api.Auth
 
-data BasicAuthLogin = BasicAuthLogin ByteString ByteString
+import Types
+import Monad
 
-instance HasClient api => HasClient (BasicAuth :> api) where
-   type Client (BasicAuth :> api) = BasicAuthLogin -> Client api
-
-   clientWithRoute Proxy req baseurl login =
-     clientWithRoute (Proxy :: Proxy api) (loginRequest login req) baseurl
-
-loginRequest :: BasicAuthLogin -> Req -> Req
-loginRequest (BasicAuthLogin user password) req = addHeader "Authorization" auth req
-  where
-    auth = T.decodeUtf8 ("Basic " <> B64.encode (user <> ":" <> password))
 
 -- Paginated Response ----------------------------------------------------------
-
-
-data Paginated a = Paginated
-  { prev   :: Maybe Int
-  , next   :: Maybe Int
-  , result :: a }
 
 instance {-# OVERLAPPING #-} (MimeUnrender ct a) => HasClient (Get (ct ': cts) (Paginated a)) where
   type Client (Get (ct ': cts) (Paginated a)) = EitherT ServantError IO (Paginated a)
@@ -63,19 +46,20 @@ instance {-# OVERLAPPING #-} (MimeUnrender ct a) => HasClient (Get (ct ': cts) (
 
 parseHeader :: ([(H.HeaderName, ByteString)], a) -> Paginated a
 parseHeader (headers, resp) = Paginated
-  { prev  = prev'
-  , next  = next'
-  , result = resp }
+  { prv  = prev'
+  , nxt  = next'
+  , lst = last'
+  , rsult = resp }
   where
     findHeader :: ByteString -> Maybe ByteString
     findHeader name = lookup (CI.mk name) headers
     --pagecount = maybe 0 S8.readInt $ findHeader "Per-Page"
-    (next', prev') = case findHeader "Link" of
-      Nothing -> (Nothing, Nothing)
+    (next', prev', last') = case findHeader "Link" of
+      Nothing -> (Nothing, Nothing, Nothing)
       Just b  -> parseLinkHeader b
 
-parseLinkHeader :: ByteString -> (Maybe Int, Maybe Int)
-parseLinkHeader header = (lookup "next" relMap, lookup "prev" relMap)
+parseLinkHeader :: ByteString -> (Maybe Int, Maybe Int, Maybe Int)
+parseLinkHeader header = (lookup "next" relMap, lookup "prev" relMap, lookup "last" relMap)
   where
     relMap = mapMaybe parseRel links
 
@@ -89,26 +73,15 @@ parseLinkHeader header = (lookup "next" relMap, lookup "prev" relMap)
 
     matchRels :: [ByteString] -> [[ByteString]]
     matchRels links = map (\(l :: ByteString) ->
-      getAllTextSubmatches $ l =~ ("page=([0-9]+)>; rel=\"(prev|next)\"" :: ByteString) :: [ByteString]) links
+      getAllTextSubmatches $ l =~ ("page=([0-9]+)>; rel=\"(prev|next|last)\"" :: ByteString) :: [ByteString]) links
 
 -- Import API ------------------------------------------------------------------
 
-type OrganizationsAPI = BasicAuth :> "connect" :> "organizations" :> "products" :> QueryParam "page" Int :> Get '[JSON] (Paginated Array)
-                   :<|> BasicAuth :> "connect" :> "organizations" :> "repositories" :> QueryParam "page" Int :> Get '[JSON] (Paginated Array)
-                   :<|> BasicAuth :> "connect" :> "organizations" :> "systems" :> QueryParam "page" Int :> Get '[JSON] (Paginated Array)
-                   :<|> BasicAuth :> "connect" :> "organizations" :> "subscriptions" :> QueryParam "page" Int :> Get '[JSON] (Paginated Array)
+type SyncAPI = BasicAuth :> "connect" :> "organizations" :> "products" :> QueryParam "page" Int :> Get '[JSON] (Paginated Array)
+          :<|> BasicAuth :> "connect" :> "organizations" :> "repositories" :> QueryParam "page" Int :> Get '[JSON] (Paginated Array)
+          :<|> BasicAuth :> "connect" :> "organizations" :> "systems" :> QueryParam "page" Int :> Get '[JSON] (Paginated Array)
+          :<|> BasicAuth :> "connect" :> "organizations" :> "subscriptions" :> QueryParam "page" Int :> Get '[JSON] (Paginated Array)
 
 
-organizationsAPI :: Proxy OrganizationsAPI
-organizationsAPI = Proxy
-
-testBaseUrl = BaseUrl Http "localhost" 3000
-
-(testGetProducts :<|> testGetRepositories :<|> testGetSystems :<|> testGetSubscriptions) = client organizationsAPI testBaseUrl
-
-runTest :: EitherT ServantError IO a -> IO a
-runTest f = do
-  result <- runEitherT f
-  case result of
-    Left err -> error $ "Error: " ++ show err
-    Right r  -> return r
+syncAPI :: Proxy syncAPI
+syncAPI = Proxy
