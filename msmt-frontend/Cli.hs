@@ -9,7 +9,7 @@ import           System.Directory
 import           System.Environment
 import           System.Exit
 
-import           MSMT.Cli
+import           MSMT.Util.Cli
 
 import           Types                  hiding (info)
 

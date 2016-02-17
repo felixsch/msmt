@@ -12,17 +12,17 @@ module Api.Subscriptions where
 
 import           Control.Monad.Trans.Either
 import           Data.Aeson.Types
-import           Data.ByteString            (ByteString)
-import qualified Data.ByteString.Char8      as S8
+import           Data.ByteString             (ByteString)
+import qualified Data.ByteString.Char8       as S8
 import           Data.Either
 import           Data.Maybe
 import           Data.Proxy
-import           Data.Text                  (Text)
-import qualified Data.Text                  as T
-import qualified Data.Text.Encoding         as T
-import qualified Data.Vector                as V
-import           Database.Esqueleto         ((^.))
-import qualified Database.Esqueleto         as E
+import           Data.Text                   (Text)
+import qualified Data.Text                   as T
+import qualified Data.Text.Encoding          as T
+import qualified Data.Vector                 as V
+import           Database.Esqueleto          ((^.))
+import qualified Database.Esqueleto          as E
 import           Database.Persist.Sql
 import           GHC.Generics
 import           Network.URI
@@ -32,17 +32,27 @@ import           System.Random
 
 
 import           MSMT.Api.Auth
-import           MSMT.Configuration         hiding (Value)
+import           MSMT.Configuration
 import           MSMT.Database.Schema
-import           MSMT.Util                  hiding (errors, info, say, warn)
+import           MSMT.Database.Subscriptions
+import           MSMT.Monad
+import           MSMT.Util
+import           MSMT.Util.ErrorT
 
 import           Types
+
+data AnnounceError = ParseAnnounceFailed String
+
+instance Show AnnounceError where
+  show (ParseAnnounceFailed _) = "Could not parse your supplied announce. Check your client."
+
+instance ResponseError AnnounceError where
+  errorNum (ParseAnnounceFailed _) = 201
 
 data AnnounceResponse = AnnounceResponse
   { login    :: Text
   , password :: Text }
   deriving (Show, Eq, Generic)
-
 instance ToJSON AnnounceResponse
 
 type SubscriptionsAPI = ReqTokenAuth :> "subscriptions" :> "systems" :> ReqBody '[JSON] Value :> Post '[JSON] AnnounceResponse
@@ -61,7 +71,8 @@ parseAnnounce regcode = parseEither $ withObject "announce" $ \o -> do
 
 subscriptionAnnounce :: AuthHeader -> Value -> FrontendM AnnounceResponse
 subscriptionAnnounce auth value = do
-  (regcode, Entity subId sub) <- getSubscription $ getToken auth
+  (regcode, Entity subId sub) <- whenFail (getSubscription $ getToken auth) (lift . responseError)
+
   conf               <- rtConf <$> ask
   gen_pw             <- liftIO newStdGen
   gen_login          <- liftIO newStdGen
@@ -71,7 +82,8 @@ subscriptionAnnounce auth value = do
       login        = T.pack $ "MSMT_" ++ genStr conf gen_login
       mannounce    = parseAnnounce regcode value
 
-  when (isLeft mannounce) $ debug ("Can not parse announce (" ++ fromLeft mannounce ++ ")") >> lift (left err404)
+
+  whenLeft $ \err -> debug ("Can not parse announce (" ++ err ++ ")") >> lift $ responseError (ParseAnnounceFailed err)
 
   db $ insert_ $ fromRight mannounce
 
@@ -85,10 +97,6 @@ subscriptionAnnounce auth value = do
   where
     genStr conf gen = take (cfgDefault "frontend" "password-length" 16 conf) $ randomRs ('a', 'z') gen
 
-
--- FIXME: refactor me
-fromRight (Right a) = a
-fromLeft  (Left a)  = a
 -- subscriptions/products ------------------------------------------------------
 
 subscriptionProducts :: AuthHeader -> Maybe Text -> Maybe Text -> Maybe Text -> FrontendM Array
@@ -122,7 +130,6 @@ renderProductWithReposAndExt :: Text -> Entity Product -> [Entity Repository] ->
 renderProductWithReposAndExt proxy (Entity pId p) repos exts = object $
   [ "id" .= pId
   , "repositories" .= renderedRepos repos
-  ,
   ]
   where
     renderedRepos repos = V.map renderRepo $ V.fromList repos

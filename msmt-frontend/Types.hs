@@ -1,3 +1,6 @@
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+
 module Types
   ( Options(..)
   , Runtime(..)
@@ -14,9 +17,11 @@ import           Database.Persist.Postgresql
 import           Servant.Server
 
 import           MSMT.Configuration
-import           MSMT.Database.Util
+import           MSMT.Database
 import           MSMT.Messages
-import           MSMT.Util                     hiding (errors, info, say, warn)
+import           MSMT.Monad
+import           MSMT.Util
+import           MSMT.Util.ErrorT
 
 data Options = Options
   { doDebug       :: Bool
@@ -26,11 +31,21 @@ data Options = Options
   , configuration :: Maybe FilePath
 } deriving (Show)
 
-
-
 data Runtime = Runtime
   { rtPool    :: ConnectionPool
   , rtConf    :: Configuration
   , rtOptions :: Options
   , rtChan    :: MessageChan
   }
+
+type FrontendM = ReaderT Runtime (EitherT ServantErr IO)
+
+
+instance MSMT FrontendM where
+  db f = do
+    pool <- rtPool <$> ask
+    liftIO $ withPool pool f
+
+  sendM m = do
+    chan <- rtChan <$> ask
+    addMessage chan m

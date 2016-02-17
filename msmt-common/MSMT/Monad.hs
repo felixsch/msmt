@@ -1,3 +1,5 @@
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 
 module MSMT.Monad
   ( MSMT(..)
@@ -13,11 +15,16 @@ import           Control.Monad.Trans.Class
 import           Database.Persist.Postgresql
 
 import           MSMT.Messages
+import           MSMT.Util.ErrorT
 
 
 class (MonadIO m) => MSMT m where
   db :: SqlPersistT IO a -> m a
   sendM :: Message -> m ()
+
+instance (MSMT m) => MSMT (ErrorT e m) where
+  db    = lift . db
+  sendM = lift . sendM
 
 say :: (MSMT m) => String -> m ()
 say  = sendM . Say

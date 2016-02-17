@@ -41,7 +41,7 @@ instance MSMT SyncM where
     chan <- rtChan <$> ask
     addMessage chan msg
 
-instance MSMT (EitherT SyncError SyncM) where
+instance MSMT (EitherT a SyncM) where
   db    = lift . db
   sendM = lift . sendM
 

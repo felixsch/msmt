@@ -91,20 +91,20 @@ syncAllEntities = do
 
 
 syncProducts :: Int -> ApiEndpoint -> SyncM ()
-syncProducts w productEndpoint = syncEntity "products" 10 productEndpoint parseProduct asItIs
+syncProducts w productEndpoint = syncEntity "products" w productEndpoint parseProduct asItIs
 
 syncSubscriptions :: Int -> ApiEndpoint -> SyncM ()
-syncSubscriptions w subscriptionEndpoint = syncEntity "subscriptions" 10 subscriptionEndpoint parseSubscription asItIs
+syncSubscriptions w subscriptionEndpoint = syncEntity "subscriptions" w subscriptionEndpoint parseSubscription asItIs
 
 syncSystems :: Int -> ApiEndpoint -> SyncM ()
-syncSystems w systemEndpoint = syncEntity "systems" 10 systemEndpoint parseSystem asItIs
+syncSystems w systemEndpoint = syncEntity "systems" w systemEndpoint parseSystem asItIs
 
 syncRepositories :: Int -> ApiEndpoint -> SyncM ()
-syncRepositories w repositoryEndpoint = syncEntity "repositories" 10 repositoryEndpoint parseRepository asItIs
-
+syncRepositories w repositoryEndpoint = syncEntity "repositories" w repositoryEndpoint parseRepository asItIs
 
 syncEntity :: (ToBackendKey SqlBackend a) => String -> Int -> ApiEndpoint -> (Value -> Parser (Key a, a)) -> (a -> IO a) -> SyncM ()
 syncEntity name workers endpoint parser f = do
+  info $ "[sync]["++ name ++ "] start syncing " ++ name ++ "..."
   chan <- rtChan <$> ask
   pool <- rtPool <$> ask
   set  <- try $ fetchFromEndpoint endpoint

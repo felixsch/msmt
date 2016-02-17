@@ -46,13 +46,9 @@ main = commandline $ do
                                                (cfgDefault "backend" "db-pool" 3 config)
 
   case action options of
-    "start"   -> putStrLn "Currently not implemented"
     "sync"    -> runSync pool config options
     "status"  -> putStrLn "Currently not implemented"
-    "stop"    -> putStrLn "Currently not implemented"
     otherwise -> msmtHelp
-
-  threadDelay 2000000
 
   where
     getConfig = fromMaybe configurationPath . configuration
